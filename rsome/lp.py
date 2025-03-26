@@ -358,11 +358,12 @@ class Model:
         self.solution = None
         self.pupdate = True
         self.dupdate = True
+        self.name_num=0               
 
         if not nobj:
             self.dvar()
 
-    def dvar(self, shape=(), vtype='C', name=None, aux=False):
+    def dvar(self, shape=(), vtype='C', name=None, aux=False, set=None):
 
         if not isinstance(shape, tuple):
             shape = (shape, )
@@ -378,8 +379,14 @@ class Model:
             raise ValueError('Unknown variable type.')
         if len(vtype) != 1 and len(vtype) != np.prod(shape):
             raise ValueError('Inconsistent variables and their types.')
-
-        new_var = Vars(self, self.last, new_shape, vtype, name)
+        
+        if name == None:
+            if aux==True:
+                name='aux_'+str(self.name_num)
+            else:
+                name=str(self.name_num)
+            self.name_num=self.name_num+1
+        new_var = Vars(self, self.last, new_shape, vtype, name, set=set)
 
         if not aux:
             self.vars.append(new_var)
@@ -593,6 +600,16 @@ class Model:
                                     if len(item.vtype) == 1
                                     else np.array(list(item.vtype))
                                     for item in self.vars + self.auxs])
+            # names are build for the Vars 
+            vname = np.concatenate([
+                                    np.array(
+                                        [(((f"{item.name}_{str(i[0]).split("''")[0]}_{str(i[1]).split("''")[0]}_{t}").replace(' ',''))
+                                         if type(i)==tuple else (f"{item.name}_{str(i).split("''")[0]}_{t}"))
+                                         for i in (item.set[0] if item.set is not None else '')
+                                         for t in (item.set[1] if len(item.set) == 2 else [''])]
+                                    ) if item.set is not None else np.array([f"{item.name}_{i}" for i in range(item.size)])
+                                    for item in self.vars + self.auxs
+                                ])                             
 
             ub = np.array([np.inf] * self.last)
             lb = np.array([-np.inf] * self.last)
@@ -604,7 +621,7 @@ class Model:
                     lb[b.indices] = np.maximum(b.values, lb[b.indices])
 
             formula = LinProg(linear, const, sense,
-                              vtype, ub, lb, obj)
+                              vtype, ub, lb, obj, vname)
             self.primal = formula
             self.pupdate = False
 
@@ -786,7 +803,7 @@ class Vars:
 
     __array_priority__ = 100
 
-    def __init__(self, model, first, shape, vtype, name, sparray=None):
+    def __init__(self, model, first, shape, vtype, name, sparray=None,set=None):
 
         self.model = model
         self.first = first
@@ -797,6 +814,7 @@ class Vars:
         self.vtype = vtype
         self.name = name
         self.sparray = sparray
+        self.set=set            
 
     def __repr__(self):
 
@@ -3378,7 +3396,7 @@ class RoConstr:
         size_support = support.linear.shape[1]
         num_rand = min(num_rand, support.linear.shape[0])
 
-        dual_var = self.dec_model.dvar((num_constr, size_support))
+        dual_var = self.dec_model.dvar((num_constr, size_support),name='uncertainty')
 
         constr1 = (dual_var@support.obj +
                    self.affine.reshape(num_constr) <= 0)
@@ -5326,13 +5344,14 @@ class LinProg:
     The LinProg class creates an object of linear program.
     """
 
-    def __init__(self, linear, const, sense, vtype, ub, lb, obj=None):
+    def __init__(self, linear, const, sense, vtype, ub, lb, obj=None,vname=None):
 
         self.obj = obj
         self.linear = linear
         self.const = const
         self.sense = sense
         self.vtype = vtype
+        self.vname = vname                 
         self.ub = ub
         self.lb = lb
 
@@ -5376,12 +5395,12 @@ class LinProg:
 
         return solver.solve(self)
 
-    def lp_export(self):
-
+    def lp_export(self, test=False):
+        
         string = 'Minimize\n'
         string += ' obj: '
-        obj_str = ' '.join(['{} {} x{}'.format('-' if coeff < 0 else '+',
-                                               abs(coeff), i+1)
+        obj_str = ' '.join(['{} {} x_{}'.format('-' if coeff < 0 else '+',
+                                               abs(coeff), self.vname[i])
                             for i, coeff in enumerate(self.obj) if coeff])
         string += obj_str[2:] if obj_str[:2] == '+ ' else obj_str
 
@@ -5390,40 +5409,46 @@ class LinProg:
             row = self.linear[i]
             coeffs = row.data
             indices = row.indices
-            each = ['{} {} x{}'.format('-' if coeff < 0 else '+',
-                                       abs(coeff), index+1)
+            # using ` as separator, when comparing lp files 
+            each = ['`{} {} x_{}'.format('-' if coeff < 0 else '+',
+                                       abs(coeff), self.vname[index])
                     for coeff, index in zip(coeffs, indices)]
             each_line = ' '.join(each)
             if each_line[:2] == '+ ':
                 each_line = each_line[2:]
 
             string += ' c{}: '.format(i+1) + each_line
-            string += ' <= ' if self.sense[i] == 0 else ' = '
+            string += ' `<= ' if self.sense[i] == 0 else ' `= '
             string += '{}\n'.format(self.const[i])
 
         ub, lb = self.ub, self.lb
         nvar = len(ub)
         string += 'Bounds\n'
         for i in range(nvar):
-            string += '{} <= x{} <= {}\n'.format(lb[i], i+1, ub[i])
+            string += '{} <= x_{} <= {}\n'.format(lb[i], self.vname[i], ub[i])
 
         ind_int, = np.where(self.vtype == 'I')
-        int_string = '\n'.join(['x{}'.format(i+1) for i in ind_int])
+        int_string = '\n'.join(['x_{}'.format(self.vname[i]) for i in ind_int])
         if len(ind_int) > 0:
             string += 'General\n'
             string += ' ' + int_string + '\n'
 
         ind_bin, = np.where(self.vtype == 'B')
-        bin_string = '\n'.join(['x{}'.format(i+1) for i in ind_bin])
+        bin_string = '\n'.join(['x_{}'.format(self.vname[i]) for i in ind_bin])
         if len(ind_bin) > 0:
             string += 'Binary\n'
             string += ' ' + bin_string + '\n'
 
         string += 'End'
+        if test:
+            return string
+        else: 
+            return string.replace('`','')
+
 
         return string
 
-    def to_lp(self, name='out'):
+    def to_lp(self, name='out',test=False):
         '''
         Export the standard form of the optimization model as a .lp file.
 
@@ -5438,7 +5463,7 @@ class LinProg:
         '''
 
         with open(name + '.lp', 'w') as f:
-            f.write(self.lp_export())
+            f.write(self.lp_export(test))
 
 
 class Solution:
@@ -5446,7 +5471,7 @@ class Solution:
     The Solution class creats an object summarizing solution information.
     """
 
-    def __init__(self, solver, objval, x, status, time, xs=None, y=None):
+    def __init__(self, solver, objval, x, status, time, vars=None ,xs=None, y=None):
 
         self.solver = solver
         self.objval = objval
@@ -5455,6 +5480,7 @@ class Solution:
         self.y = y
         self.status = status
         self.time = time
+        self.vars= vars               
 
     def __repr__(self):
 
