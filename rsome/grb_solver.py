@@ -29,9 +29,10 @@ def solve(formula, display=True, log=False, params={}):
 
     nv = formula.linear.shape[1]
     vtype = list(formula.vtype)
+    vname = list(formula.vname)                          
 
     grb = gp.Model()
-    x = grb.addMVar(nv, lb=formula.lb, ub=formula.ub, vtype=vtype)
+    x = grb.addMVar(nv, lb=formula.lb, ub=formula.ub, vtype=vtype, name=vname)
 
     indices_eq = (formula.sense == 1)
     indices_ineq = (formula.sense == 0)
@@ -89,10 +90,10 @@ def solve(formula, display=True, log=False, params={}):
 
     try:
         solution = Solution('Gurobi', grb.ObjVal, np.array(grb.getAttr('X')),
-                            grb.Status, grb.Runtime, y=y)
+                            grb.Status, grb.Runtime,gbr, y=y)
     except AttributeError:
         warnings.warn('Fail to find the optimal solution.')
         # solution = None
-        solution = Solution('Gurobi', np.nan, None, grb.Status, grb.Runtime)
+        solution = Solution('Gurobi', np.nan, None, grb.Status, grb.Runtime, gbr)
 
     return solution
