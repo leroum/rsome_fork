@@ -47,7 +47,7 @@ class Model:
         self.dual = None
         self.rc_model.reset()
 
-    def dvar(self, shape=(), vtype='C', name=None, aux=False):
+    def dvar(self, shape=(), vtype='C', name=None, aux=False, set=None):
         """
         Returns an array of decision variables with the given shape
         and variable type.
@@ -70,7 +70,7 @@ class Model:
             An array of new decision variables
         """
 
-        new_var = self.rc_model.dvar(shape, vtype, name, aux)
+        new_var = self.rc_model.dvar(shape, vtype, name, aux, set=set)
         return new_var
 
     def rvar(self, shape=(), name=None):
@@ -91,7 +91,7 @@ class Model:
             An array of new random variables
         """
 
-        new_var = self.sup_model.dvar(shape, 'C', name)
+        new_var = self.sup_model.dvar(shape, 'C', name=name)
         return new_var
 
     def ldr(self, shape=(), name=None):
