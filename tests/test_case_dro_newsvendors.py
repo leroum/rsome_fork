@@ -1,9 +1,9 @@
-from rsome import dro
-from rsome import eco_solver as eco
-from rsome import E
-import rsome as rso
 import numpy as np
 import numpy.random as rd
+
+import rsome as rso
+from rsome import E, dro
+from rsome import eco_solver as eco
 
 
 def test_dro_model():
@@ -14,7 +14,7 @@ def test_dro_model():
     S = 10
     c = np.ones(N)
     d = 50 * N
-    p = 1 + 4*rd.rand(N)
+    p = 1 + 4 * rd.rand(N)
     zbar = 100 * rd.rand(N)
     zhat = zbar * rd.rand(S, N)
     theta = 0.01 * zbar.min()
@@ -25,11 +25,10 @@ def test_dro_model():
 
     fset = model.ambiguity()
     for s in range(S):
-        fset[s].suppset(0 <= z, z <= zbar,
-                        rso.norm(z-zhat[s]) <= u)
+        fset[s].suppset(0 <= z, z <= zbar, rso.norm(z - zhat[s]) <= u)
     fset.exptset(E(u) <= theta)
     pr = model.p
-    fset.probset(pr == 1/S)
+    fset.probset(pr == 1 / S)
 
     x = model.dvar(N)
     y = model.dvar(N)
@@ -38,11 +37,11 @@ def test_dro_model():
     for s in range(S):
         y.adapt(s)
 
-    model.minsup(-p@x + E(p@y), fset)
+    model.minsup(-p @ x + E(p @ y), fset)
     model.st(y >= 0)
     model.st(y >= x - z)
     model.st(x >= 0)
-    model.st(c@x == d)
+    model.st(c @ x == d)
 
     model.solve(eco)
 

@@ -1,12 +1,11 @@
-from collections.abc import Iterable
-
+from .lp import Model as LPModel
+from .lp import LinConstr, Bounds, CvxConstr, ConeConstr, IPCone
+from .lp import LinProg
+from .lp import concat
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp
-
-from .lp import Bounds, ConeConstr, CvxConstr, IPCone, LinConstr, LinProg
-from .lp import Model as LPModel
-from .lp import concat
+from collections.abc import Iterable
 
 
 class Model(LPModel):
@@ -385,7 +384,7 @@ class SOCProg(LinProg):
 
     def lp_export(self, test=False):
 
-        string = super().lp_export(test)
+        string = super().lp_export(string = super().lp_export(test))
         index_st = string.find('Subject To')
         s1 = string[:index_st+11]
         s2 = string[index_st+11:]

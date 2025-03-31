@@ -91,7 +91,7 @@ class Model:
             An array of new random variables
         """
 
-        new_var = self.sup_model.dvar(shape, 'C', name= name)
+        new_var = self.sup_model.dvar(shape, 'C', name=name)
         return new_var
 
     def ldr(self, shape=(), name=None):
@@ -402,11 +402,6 @@ class Model:
             self.dupdate = False
 
         return formula
-    def grb_model(self, solver=None, display=True, log=False, params={}):
-        
-        model = solver.grb_model(self.do_math(), display, log, params)
-
-        return model
 
     def solve(self, solver=None, display=True, log=False, params={}):
         """
