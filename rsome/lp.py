@@ -638,41 +638,52 @@ class Model:
                 const = np.array([0])
                 sense = np.array([1])
 
-            vtype = np.concatenate(
-                [
-                    (
-                        np.array([item.vtype] * item.size)
-                        if len(item.vtype) == 1
-                        else np.array(list(item.vtype))
-                    )
-                    for item in self.vars + self.auxs
-                ]
-            )
-            # names are build for the Vars
-            vname = np.concatenate(
-                [
-                    (
-                        np.array(
-                            [
-                                (
-                                    (
-                                        (
-                                            f"{item.name}_{str(i[0]).split("''")[0]}_{str(i[1]).split("''")[0]}_{t}"
-                                        ).replace(" ", "")
-                                    )
-                                    if type(i) == tuple
-                                    else (f"{item.name}_{str(i).split("''")[0]}_{t}")
+            vtype_list = []
+            vname_list = []
+
+            for item in self.vars + self.auxs:
+                # Create the vtype array for the current item
+                if len(item.vtype) == 1:
+                    vtype_item = np.array([item.vtype] * item.size)
+                else:
+                    vtype_item = np.array(list(item.vtype))
+
+                # Create the vname array for the current item
+                if item.set is not None:
+                    # If item.set exists, define the two sets to iterate over:
+                    # set1: the first part of item.set
+                    # set2: the second part if available, otherwise use a list with an empty string
+                    set1 = item.set[0]
+                    set2 = item.set[1] if len(item.set) == 2 else [""]
+                    # Use a nested iteration over set1 and set2 to create names
+                    vname_item = np.array(
+                        [
+                            (
+                                # If i is a tuple, format using the first two tuple elements after splitting
+                                f"{item.name}_{str(i[0]).split('\'\'')[0]}_{str(i[1]).split('\'\'')[0]}_{t}".replace(
+                                    " ", ""
                                 )
-                                for i in (item.set[0] if item.set is not None else "")
-                                for t in (item.set[1] if len(item.set) == 2 else [""])
-                            ]
-                        )
-                        if item.set is not None
-                        else np.array([f"{item.name}_{i}" for i in range(item.size)])
+                                if isinstance(i, tuple)
+                                # Otherwise, format using i directly
+                                else f"{item.name}_{str(i).split('\'\'')[0]}_{t}"
+                            )
+                            for i in set1
+                            for t in set2
+                        ]
                     )
-                    for item in self.vars + self.auxs
-                ]
-            )
+                else:
+                    # If no set is provided, create names with a simple index appended
+                    vname_item = np.array(
+                        [f"{item.name}_{i}" for i in range(item.size)]
+                    )
+
+                # Append the arrays for vtype and vname to their respective lists
+                vtype_list.append(vtype_item)
+                vname_list.append(vname_item)
+
+            # Concatenate all the arrays into single numpy arrays for vtype and vname
+            vtype = np.concatenate(vtype_list)
+            vname = np.concatenate(vname_list)
 
             ub = np.array([np.inf] * self.last)
             lb = np.array([-np.inf] * self.last)
@@ -772,12 +783,6 @@ class Model:
             self.dupdate = False
 
             return formula
-
-    def grb_model(self, solver=None, display=True, log=False, params={}):
-
-        model = solver.grb_model(self.do_math(obj=True), display, log, params)
-
-        return model
 
     def solve(self, solver=None, display=True, log=False, params={}):
         """
