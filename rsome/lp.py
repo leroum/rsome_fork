@@ -5783,13 +5783,14 @@ class Solution:
     The Solution class creats an object summarizing solution information.
     """
 
-    def __init__(self, solver, objval, x, status, time, vars=None, xs=None, y=None):
+    def __init__(self, solver, objval, x, status, time, model=None, vars=None, xs=None, y=None):
 
         self.solver = solver
         self.objval = objval
         self.x = x
         self.xs = xs
         self.y = y
+        self.model=model
         self.status = status
         self.time = time
         self.vars = vars

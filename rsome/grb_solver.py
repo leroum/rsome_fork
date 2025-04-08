@@ -100,12 +100,12 @@ def solve(formula, display=True, log=False, params={}):
             np.array(grb.getAttr("X")),
             grb.Status,
             grb.Runtime,
-            grb,
+            model=grb,
             y=y,
         )
     except AttributeError:
         warnings.warn("Fail to find the optimal solution.")
         # solution = None
-        solution = Solution("Gurobi", np.nan, None, grb.Status, grb.Runtime, grb)
+        solution = Solution("Gurobi", np.nan, None, grb.Status, grb.Runtime, model=grb)
 
     return solution
