@@ -230,7 +230,7 @@ class Model(LPModel):
             formula = super().do_math(primal=True, refresh=False, obj=obj)
             formula = SOCProg(formula.linear, formula.const, formula.sense,
                               formula.vtype, formula.ub, formula.lb,
-                              qmat, formula.obj)
+                              qmat, formula.obj, formula.vname)
             self.primal = formula
             self.pupdate = False
 
@@ -316,9 +316,9 @@ class SOCProg(LinProg):
     The SOCProg class creates an second-order cone program
     """
 
-    def __init__(self, linear, const, sense, vtype, ub, lb, qmat, obj=None):
+    def __init__(self, linear, const, sense, vtype, ub, lb, qmat, obj=None,vname=None):
 
-        super().__init__(linear, const, sense, vtype, ub, lb, obj)
+        super().__init__(linear, const, sense, vtype, ub, lb, obj,vname)
         self.qmat = qmat
 
     def __repr__(self):

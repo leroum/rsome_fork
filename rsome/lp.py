@@ -362,7 +362,7 @@ class Model:
         if not nobj:
             self.dvar()
 
-    def dvar(self, shape=(), vtype='C', name=None, aux=False):
+    def dvar(self, shape=(), vtype='C', name=None, aux=False,set=None):
 
         if not isinstance(shape, tuple):
             shape = (shape, )
@@ -379,7 +379,7 @@ class Model:
         if len(vtype) != 1 and len(vtype) != np.prod(shape):
             raise ValueError('Inconsistent variables and their types.')
 
-        new_var = Vars(self, self.last, new_shape, vtype, name)
+        new_var = Vars(self, self.last, new_shape, vtype, name, set=set)
 
         if not aux:
             self.vars.append(new_var)
@@ -486,6 +486,27 @@ class Model:
         self.pupdate = True
         self.dupdate = True
 
+    def _make_vnames(self,item):
+        out = []
+        if item.set is not None:
+            # item.set ist ein Tuple (set0, set1)
+            set0, set1 = item.set
+            for elem in set0:
+                for t in (set1 if len(item.set) > 1 else ['']):
+                    if isinstance(elem, tuple):
+                        clean0 = str(elem[0]).strip("'")
+                        clean1 = str(elem[1]).strip("'")
+                        base = f"{item.name}_{clean0}_{clean1}_{t}"
+                    else:
+                        clean = str(elem).strip("'")
+                        base = f"{item.name}_{clean}_{t}"
+                    out.append(base.replace(" ", ""))
+        else:
+            # falls keine .set definiert ist, nummeriere einfach
+            for idx in range(item.size):
+                out.append(f"{item.name}_{idx}")
+        return out
+    
     def do_math(self, primal=True, refresh=True, obj=True):
         """
         Return the linear programming problem as the standard formula
@@ -593,6 +614,11 @@ class Model:
                                     if len(item.vtype) == 1
                                     else np.array(list(item.vtype))
                                     for item in self.vars + self.auxs])
+            
+            # names are build for the Vars 
+            vname = np.array(
+                        sum((self._make_vnames(item) for item in (self.vars + self.auxs)), [])
+                    )
 
             ub = np.array([np.inf] * self.last)
             lb = np.array([-np.inf] * self.last)
@@ -604,7 +630,7 @@ class Model:
                     lb[b.indices] = np.maximum(b.values, lb[b.indices])
 
             formula = LinProg(linear, const, sense,
-                              vtype, ub, lb, obj)
+                              vtype, ub, lb, obj, vname)
             self.primal = formula
             self.pupdate = False
 
@@ -786,7 +812,7 @@ class Vars:
 
     __array_priority__ = 100
 
-    def __init__(self, model, first, shape, vtype, name, sparray=None):
+    def __init__(self, model, first, shape, vtype, name, sparray=None,set=None):
 
         self.model = model
         self.first = first
@@ -797,6 +823,7 @@ class Vars:
         self.vtype = vtype
         self.name = name
         self.sparray = sparray
+        self.set=set
 
     def __repr__(self):
 
@@ -5326,13 +5353,14 @@ class LinProg:
     The LinProg class creates an object of linear program.
     """
 
-    def __init__(self, linear, const, sense, vtype, ub, lb, obj=None):
+    def __init__(self, linear, const, sense, vtype, ub, lb, obj=None,vname=None):
 
         self.obj = obj
         self.linear = linear
         self.const = const
         self.sense = sense
         self.vtype = vtype
+        self.vname = vname
         self.ub = ub
         self.lb = lb
 
@@ -5446,7 +5474,7 @@ class Solution:
     The Solution class creats an object summarizing solution information.
     """
 
-    def __init__(self, solver, objval, x, status, time, xs=None, y=None):
+    def __init__(self, solver, objval, x, status, time, xs=None, y=None, model=None):
 
         self.solver = solver
         self.objval = objval
@@ -5455,6 +5483,7 @@ class Solution:
         self.y = y
         self.status = status
         self.time = time
+        self.model = model
 
     def __repr__(self):
 

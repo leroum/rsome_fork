@@ -258,7 +258,7 @@ class Model(SOCModel):
             formula = super().do_math(primal=True, refresh=False, obj=obj)
             formula = GCProg(formula.linear, formula.const, formula.sense,
                              formula.vtype, formula.ub, formula.lb,
-                             formula.qmat, xmat, lmi, formula.obj)
+                             formula.qmat, xmat, lmi, formula.obj,formula.vname)
             self.primal = formula
             self.pupdate = False
 
@@ -276,7 +276,7 @@ class Model(SOCModel):
             if len(primal.xmat) == 0 and len(primal.lmi) == 0:
                 formula = GCProg(dual_socp.linear, dual_socp.const, dual_socp.sense,
                                  dual_socp.vtype, dual_socp.ub, dual_socp.lb,
-                                 dual_socp.qmat, [], [], dual_socp.obj)
+                                 dual_socp.qmat, [], [], dual_socp.obj, dual_socp.vname)
                 self.dual = formula
                 return formula
 
@@ -420,9 +420,9 @@ class GCProg(SOCProg):
     The GCProg class creates an exponential/semidefinite cone program
     """
 
-    def __init__(self, linear, const, sense, vtype, ub, lb, qmat, xmat, lmi, obj=None):
+    def __init__(self, linear, const, sense, vtype, ub, lb, qmat, xmat, lmi, obj=None,vname=None):
 
-        super().__init__(linear, const, sense, vtype, ub, lb, qmat, obj)
+        super().__init__(linear, const, sense, vtype, ub, lb, qmat, obj,vname)
         self.xmat = xmat
         self.lmi = lmi
 
